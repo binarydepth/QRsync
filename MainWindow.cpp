@@ -25,7 +25,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     // Initial button state
     stopButton->setEnabled(false);
-    
+
     // Trigger the initial state for the archive options
     onArchiveToggled(archiveCheck->isChecked());
 }
@@ -87,7 +87,7 @@ void MainWindow::setupUI() {
     optionsLayout->addWidget(subOptionsWidget, 1, 0, 1, 4);
 
     optionsLayout->addWidget(new QFrame(), 2, 0); // Spacer
-    
+
     // Other standard options
     verboseCheck = new QCheckBox("Verbose (-v)");
     verboseCheck->setChecked(true);
@@ -104,7 +104,7 @@ void MainWindow::setupUI() {
     optionsLayout->addWidget(deleteCheck, 4, 0);
     optionsLayout->addWidget(sizeOnlyCheck, 4, 1);
     optionsLayout->addWidget(ignoreExistingCheck, 4, 2);
-    
+
     mainLayout->addWidget(optionsGroup);
 
     // --- Manual Options Group ---
@@ -138,7 +138,7 @@ void MainWindow::setupUI() {
 
 void MainWindow::setupMenuBar() {
     QMenu *appMenu = menuBar()->addMenu("&QRsync");
-    
+
     modeActionGroup = new QActionGroup(this);
     modeActionGroup->setExclusive(true);
     contentsAction = new QAction("Contents", this);
@@ -153,6 +153,13 @@ void MainWindow::setupMenuBar() {
     appMenu->addAction(contentsAction);
     appMenu->addAction(mirrorAction);
     appMenu->addSeparator();
+
+    manualAction = new QAction("Manual", this);
+    manualAction->setCheckable(true);
+    connect(manualAction, &QAction::toggled, this, &MainWindow::onManualModeToggled);
+    appMenu->addAction(manualAction);
+    appMenu->addSeparator();
+
     QAction *quitAction = new QAction("&Quit", this);
     connect(quitAction, &QAction::triggered, &QApplication::quit);
     appMenu->addAction(quitAction);
@@ -211,45 +218,69 @@ void MainWindow::populateSyncsetMenus() {
 }
 
 void MainWindow::applySyncset(const QJsonObject &syncset) {
-    QString sourcePath = syncset["source"].toString();
-    sourceEdit->setText(sourcePath);
+    sourceEdit->setText(syncset["source"].toString());
     destinationEdit->setText(syncset["destination"].toString());
 
-    if (sourcePath.endsWith('/')) {
+    if (sourceEdit->text().endsWith('/')) {
         contentsAction->setChecked(true);
     } else {
         mirrorAction->setChecked(true);
     }
 
     QJsonObject options = syncset["options"].toObject();
-    
+
+    manualAction->setChecked(options.contains("manual_mode") ? options.value("manual_mode").toBool() : false);
+
     archiveCheck->setChecked(options.contains("archive") ? options.value("archive").toBool() : true);
-    
-    // The state of sub-options is controlled by onArchiveToggled, which is called
-    // by the setChecked line above. We only need to load them if archive is false.
-    if (!archiveCheck->isChecked()) {
-        recursiveCheck->setChecked(options.contains("recursive") ? options.value("recursive").toBool() : true);
-        symlinksCheck->setChecked(options.contains("symlinks") ? options.value("symlinks").toBool() : false);
-        permsCheck->setChecked(options.contains("perms") ? options.value("perms").toBool() : false);
-        timesCheck->setChecked(options.contains("times") ? options.value("times").toBool() : false);
-        groupCheck->setChecked(options.contains("group") ? options.value("group").toBool() : false);
-        ownerCheck->setChecked(options.contains("owner") ? options.value("owner").toBool() : false);
-    }
-    
+
+    recursiveCheck->setChecked(options.contains("recursive") ? options.value("recursive").toBool() : true);
+    symlinksCheck->setChecked(options.contains("symlinks") ? options.value("symlinks").toBool() : false);
+    permsCheck->setChecked(options.contains("perms") ? options.value("perms").toBool() : false);
+    timesCheck->setChecked(options.contains("times") ? options.value("times").toBool() : false);
+    groupCheck->setChecked(options.contains("group") ? options.value("group").toBool() : false);
+    ownerCheck->setChecked(options.contains("owner") ? options.value("owner").toBool() : false);
+
     verboseCheck->setChecked(options.contains("verbose") ? options.value("verbose").toBool() : true);
     progressCheck->setChecked(options.contains("progress") ? options.value("progress").toBool() : true);
     deleteCheck->setChecked(options.contains("delete") ? options.value("delete").toBool() : false);
     sizeOnlyCheck->setChecked(options.contains("sizeOnly") ? options.value("sizeOnly").toBool() : false);
     ignoreExistingCheck->setChecked(options.contains("ignoreExisting") ? options.value("ignoreExisting").toBool() : false);
     skipNewerCheck->setChecked(options.contains("skipNewer") ? options.value("skipNewer").toBool() : false);
+    manualOptionsEdit->setText(options.contains("manual_options") ? options.value("manual_options").toString() : "");
 
-    manualOptionsEdit->setText(options.contains("manual") ? options.value("manual").toString() : "");
+    // Manually trigger the logic to update the UI state based on loaded modes
+    onManualModeToggled(manualAction->isChecked());
+    // This second call ensures the sub-options are correctly updated after being loaded
+    onArchiveToggled(archiveCheck->isChecked());
 }
 
 
 // --- Slots Implementation ---
 
+void MainWindow::onManualModeToggled(bool checked) {
+    if (checked) {
+        // --- ENTERING MANUAL MODE ---
+        // Enable all sub-options so the user can control them.
+        QList<QCheckBox*> subOptions = {
+            recursiveCheck, symlinksCheck, permsCheck,
+            timesCheck, groupCheck, ownerCheck
+        };
+        for (QCheckBox* checkbox : subOptions) {
+            checkbox->setEnabled(true);
+        }
+    } else {
+        // --- LEAVING MANUAL MODE ---
+        // Re-apply the standard archive logic to restore a safe state.
+        onArchiveToggled(archiveCheck->isChecked());
+    }
+}
+
 void MainWindow::onArchiveToggled(bool checked) {
+    // In manual mode, this logical link is broken.
+    if (manualAction->isChecked()) {
+        return;
+    }
+
     QList<QCheckBox*> subOptions = {
         recursiveCheck, symlinksCheck, permsCheck,
         timesCheck, groupCheck, ownerCheck
@@ -259,9 +290,9 @@ void MainWindow::onArchiveToggled(bool checked) {
         checkbox->setEnabled(!checked);
         checkbox->setChecked(checked);
     }
-    
+
     if (!checked) {
-        // Sensible default when un-checking archive mode
+        // When leaving archive mode, 'recursive' is a sensible default to keep checked.
         recursiveCheck->setChecked(true);
     }
 }
@@ -316,18 +347,32 @@ void MainWindow::onRunSync() {
     outputView->clear();
 
     QStringList arguments;
-    
-    if (archiveCheck->isChecked()) {
-        arguments << "-a";
-    } else {
+
+    if (manualAction->isChecked()) {
+        // Manual Mode: Build from individual checkboxes, ignoring archiveCheck's state
+        if (archiveCheck->isChecked()) arguments << "-a";
         if (recursiveCheck->isChecked()) arguments << "-r";
         if (symlinksCheck->isChecked()) arguments << "-l";
         if (permsCheck->isChecked()) arguments << "-p";
         if (timesCheck->isChecked()) arguments << "-t";
         if (groupCheck->isChecked()) arguments << "-g";
         if (ownerCheck->isChecked()) arguments << "-o";
+    } else {
+        // Normal Mode: Standard logic
+        if (archiveCheck->isChecked()) {
+            arguments << "-a";
+        } else {
+            // Build from the visible and enabled sub-options
+            if (recursiveCheck->isChecked()) arguments << "-r";
+            if (symlinksCheck->isChecked()) arguments << "-l";
+            if (permsCheck->isChecked()) arguments << "-p";
+            if (timesCheck->isChecked()) arguments << "-t";
+            if (groupCheck->isChecked()) arguments << "-g";
+            if (ownerCheck->isChecked()) arguments << "-o";
+        }
     }
-    
+
+    // These options are independent of archive/manual mode
     if (verboseCheck->isChecked()) arguments << "-v";
     if (progressCheck->isChecked()) arguments << "--progress";
     if (sizeOnlyCheck->isChecked()) arguments << "--size-only";
@@ -335,7 +380,7 @@ void MainWindow::onRunSync() {
     if (skipNewerCheck->isChecked()) arguments << "--update";
     if (deleteCheck->isChecked()) arguments << "--delete";
 
-    // Add manual options
+    // Add manual options text in BOTH modes
     QString manualOpts = manualOptionsEdit->text();
     arguments.append(manualOpts.split(" ", Qt::SkipEmptyParts));
 
@@ -368,8 +413,9 @@ void MainWindow::onNew() {
         QJsonObject newSyncset;
         newSyncset["source"] = sourceEdit->text();
         newSyncset["destination"] = destinationEdit->text();
-        
+
         QJsonObject options;
+        options["manual_mode"] = manualAction->isChecked();
         options["archive"] = archiveCheck->isChecked();
         options["recursive"] = recursiveCheck->isChecked();
         options["symlinks"] = symlinksCheck->isChecked();
@@ -383,12 +429,12 @@ void MainWindow::onNew() {
         options["sizeOnly"] = sizeOnlyCheck->isChecked();
         options["ignoreExisting"] = ignoreExistingCheck->isChecked();
         options["skipNewer"] = skipNewerCheck->isChecked();
-        options["manual"] = manualOptionsEdit->text();
+        options["manual_options"] = manualOptionsEdit->text();
         newSyncset["options"] = options;
 
         syncsets[name] = newSyncset;
         saveSyncsets(syncsets);
-        populateSyncsetMenus(); 
+        populateSyncsetMenus();
         QMessageBox::information(this, "Success", "Syncset '" + name + "' saved successfully.");
     }
 }
@@ -407,11 +453,13 @@ void MainWindow::onSave(const QString &name) {
 
     if (reply == QMessageBox::Yes) {
         QJsonObject syncsets = loadSyncsets();
-        
+
         QJsonObject updatedSyncset;
         updatedSyncset["source"] = sourceEdit->text();
         updatedSyncset["destination"] = destinationEdit->text();
+
         QJsonObject options;
+        options["manual_mode"] = manualAction->isChecked();
         options["archive"] = archiveCheck->isChecked();
         options["recursive"] = recursiveCheck->isChecked();
         options["symlinks"] = symlinksCheck->isChecked();
@@ -425,7 +473,7 @@ void MainWindow::onSave(const QString &name) {
         options["sizeOnly"] = sizeOnlyCheck->isChecked();
         options["ignoreExisting"] = ignoreExistingCheck->isChecked();
         options["skipNewer"] = skipNewerCheck->isChecked();
-        options["manual"] = manualOptionsEdit->text();
+        options["manual_options"] = manualOptionsEdit->text();
         updatedSyncset["options"] = options;
 
         syncsets[name] = updatedSyncset;
@@ -437,11 +485,9 @@ void MainWindow::onSave(const QString &name) {
 void MainWindow::onRename(const QString &oldName) {
     bool ok;
     QString newName = QInputDialog::getText(this, "Rename Syncset", "Enter the new name for '" + oldName + "':", QLineEdit::Normal, oldName, &ok);
-    
+
     if (ok && !newName.isEmpty()) {
-        if (oldName == newName) {
-            return; // Nothing to do
-        }
+        if (oldName == newName) { return; }
 
         QJsonObject syncsets = loadSyncsets();
         if (syncsets.contains(newName)) {
@@ -469,7 +515,7 @@ void MainWindow::onAbout() {
     QMessageBox::about(this, "About QRsync",
                        "<h3>QRsync</h3>"
                        "<p>A simple Qt-based GUI for the rsync command-line tool.</p>"
-                       "<p>Version 0.1</p>");
+                       "<p>Version 0.2</p>");
 }
 
 void MainWindow::onRsyncOutput() {
@@ -492,9 +538,7 @@ void MainWindow::onRsyncFinished(int exitCode, QProcess::ExitStatus exitStatus) 
 
 QJsonObject MainWindow::loadSyncsets() {
     QFile file(settingsFilePath);
-    if (!file.open(QIODevice::ReadOnly)) {
-        return QJsonObject();
-    }
+    if (!file.open(QIODevice::ReadOnly)) { return QJsonObject(); }
     QByteArray data = file.readAll();
     QJsonDocument doc = QJsonDocument::fromJson(data);
     return doc.object();

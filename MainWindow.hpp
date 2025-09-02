@@ -13,6 +13,7 @@ class QJsonObject;
 class QMenu;
 class QAction;
 class QActionGroup;
+class QGroupBox;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -31,6 +32,7 @@ private slots:
     void onAbout();
     void onModeContents();
     void onModeMirror();
+    void onManualModeToggled(bool checked);
     void onArchiveToggled(bool checked);
 
     // UI Actions
@@ -89,6 +91,7 @@ private:
     QActionGroup *modeActionGroup;
     QAction *contentsAction;
     QAction *mirrorAction;
+    QAction *manualAction;
 
 
     // --- Process & Settings ---
