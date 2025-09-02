@@ -1,4 +1,5 @@
 #include "MainWindow.hpp"
+#include "HelpViewer.hpp"
 #include <QtWidgets>
 #include <QStandardPaths>
 #include <QJsonDocument>
@@ -65,7 +66,7 @@ void MainWindow::setupUI() {
     archiveCheck = new QCheckBox("Archive (-a)");
     archiveCheck->setChecked(true);
     connect(archiveCheck, &QCheckBox::toggled, this, &MainWindow::onArchiveToggled);
-    optionsLayout->addWidget(archiveCheck, 0, 0, 1, 2); // Span 2 columns
+    optionsLayout->addWidget(archiveCheck, 0, 0, 1, 2);
 
     // Sub-options
     recursiveCheck = new QCheckBox("Recursive (-r)");
@@ -77,7 +78,7 @@ void MainWindow::setupUI() {
 
     QWidget *subOptionsWidget = new QWidget();
     QGridLayout *subOptionsLayout = new QGridLayout(subOptionsWidget);
-    subOptionsLayout->setContentsMargins(20, 0, 0, 0); // Indent
+    subOptionsLayout->setContentsMargins(20, 0, 0, 0);
     subOptionsLayout->addWidget(recursiveCheck, 0, 0);
     subOptionsLayout->addWidget(symlinksCheck, 0, 1);
     subOptionsLayout->addWidget(permsCheck, 1, 0);
@@ -86,7 +87,7 @@ void MainWindow::setupUI() {
     subOptionsLayout->addWidget(ownerCheck, 2, 1);
     optionsLayout->addWidget(subOptionsWidget, 1, 0, 1, 4);
 
-    optionsLayout->addWidget(new QFrame(), 2, 0); // Spacer
+    optionsLayout->addWidget(new QFrame(), 2, 0);
 
     // Other standard options
     verboseCheck = new QCheckBox("Verbose (-v)");
@@ -107,7 +108,6 @@ void MainWindow::setupUI() {
 
     mainLayout->addWidget(optionsGroup);
 
-    // --- Manual Options Group ---
     QGroupBox *manualGroup = new QGroupBox("Manual Options");
     QVBoxLayout *manualLayout = new QVBoxLayout(manualGroup);
     manualOptionsEdit = new QLineEdit();
@@ -115,7 +115,6 @@ void MainWindow::setupUI() {
     manualLayout->addWidget(manualOptionsEdit);
     mainLayout->addWidget(manualGroup);
 
-    // --- Output Group ---
     QGroupBox *outputGroup = new QGroupBox("Output");
     QVBoxLayout *outputLayout = new QVBoxLayout(outputGroup);
     outputView = new QPlainTextEdit();
@@ -124,7 +123,6 @@ void MainWindow::setupUI() {
     outputLayout->addWidget(outputView);
     mainLayout->addWidget(outputGroup);
 
-    // --- Buttons ---
     QHBoxLayout *buttonLayout = new QHBoxLayout();
     runButton = new QPushButton("Run Sync");
     connect(runButton, &QPushButton::clicked, this, &MainWindow::onRunSync);
@@ -173,6 +171,8 @@ void MainWindow::setupMenuBar() {
     deleteMenu = syncsetMenu->addMenu("Delete");
 
     QMenu *helpMenu = menuBar()->addMenu("&Help");
+    helpMenu->addAction("Manual", this, &MainWindow::onShowManual);
+    helpMenu->addSeparator();
     helpMenu->addAction("About QRsync", this, &MainWindow::onAbout);
 }
 
@@ -229,38 +229,33 @@ void MainWindow::applySyncset(const QJsonObject &syncset) {
 
     QJsonObject options = syncset["options"].toObject();
 
-    manualAction->setChecked(options.contains("manual_mode") ? options.value("manual_mode").toBool() : false);
+    manualAction->setChecked(options.contains("manual_mode") ? options["manual_mode"].toBool() : false);
 
-    archiveCheck->setChecked(options.contains("archive") ? options.value("archive").toBool() : true);
+    archiveCheck->setChecked(options.contains("archive") ? options["archive"].toBool() : true);
 
-    recursiveCheck->setChecked(options.contains("recursive") ? options.value("recursive").toBool() : true);
-    symlinksCheck->setChecked(options.contains("symlinks") ? options.value("symlinks").toBool() : false);
-    permsCheck->setChecked(options.contains("perms") ? options.value("perms").toBool() : false);
-    timesCheck->setChecked(options.contains("times") ? options.value("times").toBool() : false);
-    groupCheck->setChecked(options.contains("group") ? options.value("group").toBool() : false);
-    ownerCheck->setChecked(options.contains("owner") ? options.value("owner").toBool() : false);
+    recursiveCheck->setChecked(options.contains("recursive") ? options["recursive"].toBool() : true);
+    symlinksCheck->setChecked(options.contains("symlinks") ? options["symlinks"].toBool() : false);
+    permsCheck->setChecked(options.contains("perms") ? options["perms"].toBool() : false);
+    timesCheck->setChecked(options.contains("times") ? options["times"].toBool() : false);
+    groupCheck->setChecked(options.contains("group") ? options["group"].toBool() : false);
+    ownerCheck->setChecked(options.contains("owner") ? options["owner"].toBool() : false);
 
-    verboseCheck->setChecked(options.contains("verbose") ? options.value("verbose").toBool() : true);
-    progressCheck->setChecked(options.contains("progress") ? options.value("progress").toBool() : true);
-    deleteCheck->setChecked(options.contains("delete") ? options.value("delete").toBool() : false);
-    sizeOnlyCheck->setChecked(options.contains("sizeOnly") ? options.value("sizeOnly").toBool() : false);
-    ignoreExistingCheck->setChecked(options.contains("ignoreExisting") ? options.value("ignoreExisting").toBool() : false);
-    skipNewerCheck->setChecked(options.contains("skipNewer") ? options.value("skipNewer").toBool() : false);
-    manualOptionsEdit->setText(options.contains("manual_options") ? options.value("manual_options").toString() : "");
+    verboseCheck->setChecked(options.contains("verbose") ? options["verbose"].toBool() : true);
+    progressCheck->setChecked(options.contains("progress") ? options["progress"].toBool() : true);
+    deleteCheck->setChecked(options.contains("delete") ? options["delete"].toBool() : false);
+    sizeOnlyCheck->setChecked(options.contains("sizeOnly") ? options["sizeOnly"].toBool() : false);
+    ignoreExistingCheck->setChecked(options.contains("ignoreExisting") ? options["ignoreExisting"].toBool() : false);
+    skipNewerCheck->setChecked(options.contains("skipNewer") ? options["skipNewer"].toBool() : false);
+    manualOptionsEdit->setText(options.contains("manual_options") ? options["manual_options"].toString() : "");
 
-    // Manually trigger the logic to update the UI state based on loaded modes
     onManualModeToggled(manualAction->isChecked());
-    // This second call ensures the sub-options are correctly updated after being loaded
     onArchiveToggled(archiveCheck->isChecked());
 }
-
 
 // --- Slots Implementation ---
 
 void MainWindow::onManualModeToggled(bool checked) {
     if (checked) {
-        // --- ENTERING MANUAL MODE ---
-        // Enable all sub-options so the user can control them.
         QList<QCheckBox*> subOptions = {
             recursiveCheck, symlinksCheck, permsCheck,
             timesCheck, groupCheck, ownerCheck
@@ -269,14 +264,11 @@ void MainWindow::onManualModeToggled(bool checked) {
             checkbox->setEnabled(true);
         }
     } else {
-        // --- LEAVING MANUAL MODE ---
-        // Re-apply the standard archive logic to restore a safe state.
         onArchiveToggled(archiveCheck->isChecked());
     }
 }
 
 void MainWindow::onArchiveToggled(bool checked) {
-    // In manual mode, this logical link is broken.
     if (manualAction->isChecked()) {
         return;
     }
@@ -292,7 +284,6 @@ void MainWindow::onArchiveToggled(bool checked) {
     }
 
     if (!checked) {
-        // When leaving archive mode, 'recursive' is a sensible default to keep checked.
         recursiveCheck->setChecked(true);
     }
 }
@@ -349,7 +340,7 @@ void MainWindow::onRunSync() {
     QStringList arguments;
 
     if (manualAction->isChecked()) {
-        // Manual Mode: Build from individual checkboxes, ignoring archiveCheck's state
+        // In Manual mode, build from all individual checkboxes, ignoring the logical meaning of archive.
         if (archiveCheck->isChecked()) arguments << "-a";
         if (recursiveCheck->isChecked()) arguments << "-r";
         if (symlinksCheck->isChecked()) arguments << "-l";
@@ -358,11 +349,10 @@ void MainWindow::onRunSync() {
         if (groupCheck->isChecked()) arguments << "-g";
         if (ownerCheck->isChecked()) arguments << "-o";
     } else {
-        // Normal Mode: Standard logic
+        // In Normal mode, use the standard logic.
         if (archiveCheck->isChecked()) {
             arguments << "-a";
         } else {
-            // Build from the visible and enabled sub-options
             if (recursiveCheck->isChecked()) arguments << "-r";
             if (symlinksCheck->isChecked()) arguments << "-l";
             if (permsCheck->isChecked()) arguments << "-p";
@@ -372,7 +362,6 @@ void MainWindow::onRunSync() {
         }
     }
 
-    // These options are independent of archive/manual mode
     if (verboseCheck->isChecked()) arguments << "-v";
     if (progressCheck->isChecked()) arguments << "--progress";
     if (sizeOnlyCheck->isChecked()) arguments << "--size-only";
@@ -380,7 +369,6 @@ void MainWindow::onRunSync() {
     if (skipNewerCheck->isChecked()) arguments << "--update";
     if (deleteCheck->isChecked()) arguments << "--delete";
 
-    // Add manual options text in BOTH modes
     QString manualOpts = manualOptionsEdit->text();
     arguments.append(manualOpts.split(" ", Qt::SkipEmptyParts));
 
@@ -514,8 +502,31 @@ void MainWindow::onDelete(const QString &name) {
 void MainWindow::onAbout() {
     QMessageBox::about(this, "About QRsync",
                        "<h3>QRsync</h3>"
-                       "<p>A simple Qt-based GUI for the rsync command-line tool.</p>"
-                       "<p>Version 0.2</p>");
+                       "<p>A simple Qt-based GUI for the rsync command-line tool demonstrating Semantical Information architecture.</p>"
+                       "<p>Version 1.0</p>");
+}
+
+void MainWindow::onShowManual() {
+    QProcess manProcess;
+    manProcess.start("man", {"-P", "cat", "rsync"});
+    manProcess.waitForFinished();
+
+    QString content;
+    QString title;
+
+    if (manProcess.exitStatus() == QProcess::NormalExit && manProcess.exitCode() == 0) {
+        title = "Rsync Manual";
+        content = manProcess.readAllStandardOutput();
+    } else {
+        title = "Error";
+        content = "Could not execute 'man rsync'.\n\n"
+                  "Please ensure 'rsync' and its manual pages are installed on your system.\n\n"
+                  "On Debian-based systems (like Deepin), you can typically install them by running:\n"
+                  "sudo apt install rsync";
+    }
+
+    HelpViewer viewer(title, content, this);
+    viewer.exec();
 }
 
 void MainWindow::onRsyncOutput() {

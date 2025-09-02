@@ -15,6 +15,8 @@ add_executable(QRsync
         main.cpp
         MainWindow.hpp
         MainWindow.cpp
+        HelpViewer.hpp
+        HelpViewer.cpp
 )
 
 target_link_libraries(QRsync PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets)

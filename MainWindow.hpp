@@ -30,6 +30,7 @@ private slots:
     void onRename(const QString &name);
     void onDelete(const QString &name);
     void onAbout();
+    void onShowManual(); // New slot for Help > Manual
     void onModeContents();
     void onModeMirror();
     void onManualModeToggled(bool checked);
