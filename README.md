@@ -1,6 +1,6 @@
 # **QRsync**
 
-![Record_QRsync_20250902164347](https://github.com/user-attachments/assets/6de5f1b2-9222-47dd-ba66-575d06e76491)
+![Record_QRsync_20250902173351](https://github.com/user-attachments/assets/475d8a58-a454-4728-a197-4499380683cc)
 
 A modern, cross-platform Qt GUI for the powerful rsync command-line utility. QRsync provides a user-friendly interface for building and managing complex rsync commands, complete with presets and advanced options.
 
