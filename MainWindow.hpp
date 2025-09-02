@@ -7,6 +7,8 @@
 // Forward declarations
 class QLineEdit;
 class QPlainTextEdit;
+class QCheckBox;
+class QPushButton;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -22,6 +24,7 @@ private slots:
     void onEditSync();
     void onRenameSync();
     void onDeleteSync();
+    void onAbout();
 
     void onBrowseSource();
     void onBrowseDestination();
@@ -42,6 +45,20 @@ private:
     QLineEdit *sourceEdit;
     QLineEdit *destinationEdit;
     QPlainTextEdit *outputView;
+
+    // Options
+    QCheckBox *archiveCheck;
+    QCheckBox *verboseCheck;
+    QCheckBox *progressCheck;
+    QCheckBox *deleteCheck;
+    QCheckBox *sizeOnlyCheck;
+    QCheckBox *ignoreExistingCheck;
+    QCheckBox *skipNewerCheck;
+
+    // Buttons
+    QPushButton *runButton;
+    QPushButton *stopButton;
+
 
     // --- Process ---
     QProcess *rsyncProcess;

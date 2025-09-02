@@ -9,6 +9,9 @@ MainWindow::MainWindow(QWidget *parent)
     connect(rsyncProcess, &QProcess::readyReadStandardOutput, this, &MainWindow::onRsyncOutput);
     connect(rsyncProcess, &QProcess::readyReadStandardError, this, &MainWindow::onRsyncError);
     connect(rsyncProcess, &QProcess::finished, this, &MainWindow::onRsyncFinished);
+
+    // Initial button state
+    stopButton->setEnabled(false);
 }
 
 MainWindow::~MainWindow() = default;
@@ -46,11 +49,25 @@ void MainWindow::setupUI() {
 
     // --- Options Group ---
     QGroupBox *optionsGroup = new QGroupBox("Options");
-    QHBoxLayout *optionsLayout = new QHBoxLayout(optionsGroup);
-    optionsLayout->addWidget(new QCheckBox("Archive (-a)"));
-    optionsLayout->addWidget(new QCheckBox("Verbose (-v)"));
-    optionsLayout->addWidget(new QCheckBox("Progress (--progress)"));
-    optionsLayout->addWidget(new QCheckBox("Delete (--delete)"));
+    QGridLayout *optionsLayout = new QGridLayout(optionsGroup);
+
+    archiveCheck = new QCheckBox("Archive (-a)");
+    verboseCheck = new QCheckBox("Verbose (-v)");
+    verboseCheck->setChecked(true); // Default
+    progressCheck = new QCheckBox("Progress (--progress)");
+    progressCheck->setChecked(true); // Default
+    deleteCheck = new QCheckBox("Delete on destination (--delete)");
+    sizeOnlyCheck = new QCheckBox("Size only (--size-only)");
+    ignoreExistingCheck = new QCheckBox("Ignore existing (--ignore-existing)");
+    skipNewerCheck = new QCheckBox("Skip newer (--update)");
+
+    optionsLayout->addWidget(archiveCheck, 0, 0);
+    optionsLayout->addWidget(verboseCheck, 0, 1);
+    optionsLayout->addWidget(progressCheck, 0, 2);
+    optionsLayout->addWidget(skipNewerCheck, 0, 3);
+    optionsLayout->addWidget(deleteCheck, 1, 0);
+    optionsLayout->addWidget(sizeOnlyCheck, 1, 1);
+    optionsLayout->addWidget(ignoreExistingCheck, 1, 2);
     mainLayout->addWidget(optionsGroup);
 
     // --- Output Group ---
@@ -64,10 +81,10 @@ void MainWindow::setupUI() {
 
     // --- Execution Buttons ---
     QHBoxLayout *buttonLayout = new QHBoxLayout();
-    QPushButton *runButton = new QPushButton("Run Sync");
+    runButton = new QPushButton("Run Sync");
     connect(runButton, &QPushButton::clicked, this, &MainWindow::onRunSync);
 
-    QPushButton *stopButton = new QPushButton("Stop");
+    stopButton = new QPushButton("Stop");
     connect(stopButton, &QPushButton::clicked, this, &MainWindow::onStopSync);
 
     buttonLayout->addStretch();
@@ -77,18 +94,21 @@ void MainWindow::setupUI() {
 }
 
 void MainWindow::setupMenuBar() {
-    QMenu *fileMenu = menuBar()->addMenu("&File");
+    QMenu *appMenu = menuBar()->addMenu("&QRsync");
     QAction *quitAction = new QAction("&Quit", this);
     connect(quitAction, &QAction::triggered, &QApplication::quit);
-    fileMenu->addAction(quitAction);
+    appMenu->addAction(quitAction);
 
-    QMenu *profileMenu = menuBar()->addMenu("&Profiles");
-    profileMenu->addAction("New Sync", this, &MainWindow::onNewSync);
-    profileMenu->addAction("Open Sync", this, &MainWindow::onOpenSync);
-    profileMenu->addSeparator();
-    profileMenu->addAction("Edit Sync", this, &MainWindow::onEditSync);
-    profileMenu->addAction("Rename Sync", this, &MainWindow::onRenameSync);
-    profileMenu->addAction("Delete Sync", this, &MainWindow::onDeleteSync);
+    QMenu *syncsetMenu = menuBar()->addMenu("&Syncsets");
+    syncsetMenu->addAction("New Syncset", this, &MainWindow::onNewSync);
+    syncsetMenu->addAction("Open Syncset", this, &MainWindow::onOpenSync);
+    syncsetMenu->addSeparator();
+    syncsetMenu->addAction("Edit Syncset", this, &MainWindow::onEditSync);
+    syncsetMenu->addAction("Rename Syncset", this, &MainWindow::onRenameSync);
+    syncsetMenu->addAction("Delete Syncset", this, &MainWindow::onDeleteSync);
+
+    QMenu *helpMenu = menuBar()->addMenu("&Help");
+    helpMenu->addAction("About QRsync", this, &MainWindow::onAbout);
 }
 
 
@@ -97,7 +117,7 @@ void MainWindow::setupMenuBar() {
 void MainWindow::onBrowseSource() {
     QString directory = QFileDialog::getExistingDirectory(this, "Select Source Directory");
     if (!directory.isEmpty()) {
-        sourceEdit->setText(directory);
+        sourceEdit->setText(directory + "/");
     }
 }
 
@@ -109,18 +129,44 @@ void MainWindow::onBrowseDestination() {
 }
 
 void MainWindow::onRunSync() {
-    // For now, this is a placeholder. We will implement this next.
-    outputView->appendPlainText("--- Starting Sync (Placeholder) ---");
-    outputView->appendPlainText("Source: " + sourceEdit->text());
-    outputView->appendPlainText("Destination: " + destinationEdit->text());
-    outputView->appendPlainText("--- Sync Finished ---");
+    QString source = sourceEdit->text();
+    QString destination = destinationEdit->text();
+
+    if (source.isEmpty() || destination.isEmpty()) {
+        QMessageBox::warning(this, "Missing Paths", "Source and Destination paths cannot be empty.");
+        return;
+    }
+
+    runButton->setEnabled(false);
+    stopButton->setEnabled(true);
+    outputView->clear();
+
+    QStringList arguments;
+    if (archiveCheck->isChecked()) arguments << "-a";
+    if (verboseCheck->isChecked()) arguments << "-v";
+    if (progressCheck->isChecked()) arguments << "--progress";
+    if (deleteCheck->isChecked()) arguments << "--delete";
+    if (sizeOnlyCheck->isChecked()) arguments << "--size-only";
+    if (ignoreExistingCheck->isChecked()) arguments << "--ignore-existing";
+    if (skipNewerCheck->isChecked()) arguments << "--update";
+
+    arguments << source << destination;
+
+    outputView->appendPlainText("--- Starting rsync ---");
+    outputView->appendPlainText("rsync " + arguments.join(" "));
+    outputView->appendPlainText("\n");
+
+    rsyncProcess->start("rsync", arguments);
 }
 
 void MainWindow::onStopSync() {
-     outputView->appendPlainText("--- Stop Clicked (Placeholder) ---");
+    if (rsyncProcess->state() == QProcess::Running) {
+        rsyncProcess->kill();
+        outputView->appendPlainText("\n--- Process terminated by user. ---");
+    }
 }
 
-// Profile slots are placeholders for now
+// Syncset slots are placeholders for now
 void MainWindow::onNewSync() {
     QMessageBox::information(this, "Not Implemented", "This feature will be implemented soon.");
 }
@@ -137,16 +183,28 @@ void MainWindow::onDeleteSync() {
     QMessageBox::information(this, "Not Implemented", "This feature will be implemented soon.");
 }
 
+void MainWindow::onAbout() {
+    QMessageBox::about(this, "About QRsync",
+                       "<h3>QRsync</h3>"
+                       "<p>A simple Qt-based GUI for the rsync command-line tool.</p>"
+                       "<p>Version 0.1</p>");
+}
+
 
 void MainWindow::onRsyncOutput() {
-    outputView->appendPlainText(rsyncProcess->readAllStandardOutput());
+    QByteArray data = rsyncProcess->readAllStandardOutput();
+    outputView->appendPlainText(QString::fromLocal8Bit(data));
 }
 
 void MainWindow::onRsyncError() {
-    outputView->appendPlainText(rsyncProcess->readAllStandardError());
+    QByteArray data = rsyncProcess->readAllStandardError();
+    outputView->appendPlainText(QString::fromLocal8Bit(data));
 }
 
 void MainWindow::onRsyncFinished(int exitCode, QProcess::ExitStatus exitStatus) {
     QString status = (exitStatus == QProcess::NormalExit && exitCode == 0) ? "Success" : "Failed";
     outputView->appendPlainText(QString("\n--- Process finished with exit code %1 (%2) ---").arg(exitCode).arg(status));
+
+    runButton->setEnabled(true);
+    stopButton->setEnabled(false);
 }
