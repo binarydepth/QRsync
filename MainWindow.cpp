@@ -1,3 +1,10 @@
+// QRsync - A simple Qt-based GUI for the rsync command-line tool.
+// Copyright (C) 2025 Carlos J. Checo <binarydepth@gmail.com>
+//
+// This program is licensed under the Community Public Software License (CPSL) v0.1.
+// You should have received a copy of this license along with this program.
+// If not, please see the LICENSE.md file in the root directory of this project.
+
 #include "MainWindow.hpp"
 #include "HelpViewer.hpp"
 #include <QtWidgets>
@@ -7,7 +14,10 @@
 #include <QJsonArray>
 
 MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent), rsyncProcess(nullptr) {
+    : QMainWindow(parent),
+      rsyncProcess(nullptr),
+      manualHelpShown(false) // Initialize the flag
+{
     setupUI();
 
     // Set up settings path
@@ -59,23 +69,18 @@ void MainWindow::setupUI() {
     pathsLayout->addWidget(browseDestinationButton, 1, 2);
     mainLayout->addWidget(pathsGroup);
 
-    // --- Options Group ---
     QGroupBox *optionsGroup = new QGroupBox("Options");
     QGridLayout *optionsLayout = new QGridLayout(optionsGroup);
-
     archiveCheck = new QCheckBox("Archive (-a)");
     archiveCheck->setChecked(true);
     connect(archiveCheck, &QCheckBox::toggled, this, &MainWindow::onArchiveToggled);
     optionsLayout->addWidget(archiveCheck, 0, 0, 1, 2);
-
-    // Sub-options
     recursiveCheck = new QCheckBox("Recursive (-r)");
     symlinksCheck = new QCheckBox("Copy symlinks (-l)");
     permsCheck = new QCheckBox("Preserve permissions (-p)");
     timesCheck = new QCheckBox("Preserve times (-t)");
     groupCheck = new QCheckBox("Preserve group (-g)");
     ownerCheck = new QCheckBox("Preserve owner (-o)");
-
     QWidget *subOptionsWidget = new QWidget();
     QGridLayout *subOptionsLayout = new QGridLayout(subOptionsWidget);
     subOptionsLayout->setContentsMargins(20, 0, 0, 0);
@@ -86,10 +91,7 @@ void MainWindow::setupUI() {
     subOptionsLayout->addWidget(groupCheck, 2, 0);
     subOptionsLayout->addWidget(ownerCheck, 2, 1);
     optionsLayout->addWidget(subOptionsWidget, 1, 0, 1, 4);
-
     optionsLayout->addWidget(new QFrame(), 2, 0);
-
-    // Other standard options
     verboseCheck = new QCheckBox("Verbose (-v)");
     verboseCheck->setChecked(true);
     progressCheck = new QCheckBox("Progress (--progress)");
@@ -98,14 +100,12 @@ void MainWindow::setupUI() {
     sizeOnlyCheck = new QCheckBox("Size only (--size-only)");
     ignoreExistingCheck = new QCheckBox("Ignore existing (--ignore-existing)");
     skipNewerCheck = new QCheckBox("Skip newer (--update)");
-
     optionsLayout->addWidget(verboseCheck, 3, 0);
     optionsLayout->addWidget(progressCheck, 3, 1);
     optionsLayout->addWidget(skipNewerCheck, 3, 2);
     optionsLayout->addWidget(deleteCheck, 4, 0);
     optionsLayout->addWidget(sizeOnlyCheck, 4, 1);
     optionsLayout->addWidget(ignoreExistingCheck, 4, 2);
-
     mainLayout->addWidget(optionsGroup);
 
     QGroupBox *manualGroup = new QGroupBox("Manual Options");
@@ -255,6 +255,13 @@ void MainWindow::applySyncset(const QJsonObject &syncset) {
 // --- Slots Implementation ---
 
 void MainWindow::onManualModeToggled(bool checked) {
+    if (checked && !manualHelpShown) {
+        QMessageBox::information(this, "Manual Mode Active",
+            "Manual mode is now active.\n\n"
+            "For a full list of rsync commands and options, please refer to the 'Help > Manual' menu.");
+        manualHelpShown = true;
+    }
+
     if (checked) {
         QList<QCheckBox*> subOptions = {
             recursiveCheck, symlinksCheck, permsCheck,
@@ -340,7 +347,6 @@ void MainWindow::onRunSync() {
     QStringList arguments;
 
     if (manualAction->isChecked()) {
-        // In Manual mode, build from all individual checkboxes, ignoring the logical meaning of archive.
         if (archiveCheck->isChecked()) arguments << "-a";
         if (recursiveCheck->isChecked()) arguments << "-r";
         if (symlinksCheck->isChecked()) arguments << "-l";
@@ -349,7 +355,6 @@ void MainWindow::onRunSync() {
         if (groupCheck->isChecked()) arguments << "-g";
         if (ownerCheck->isChecked()) arguments << "-o";
     } else {
-        // In Normal mode, use the standard logic.
         if (archiveCheck->isChecked()) {
             arguments << "-a";
         } else {
@@ -502,8 +507,8 @@ void MainWindow::onDelete(const QString &name) {
 void MainWindow::onAbout() {
     QMessageBox::about(this, "About QRsync",
                        "<h3>QRsync</h3>"
-                       "<p>A simple Qt-based GUI for the rsync command-line tool demonstrating Semantical Information architecture.</p>"
-                       "<p>Version 1.0</p>");
+                       "<p>A simple Qt-based GUI for the rsync command-line tool.</p>"
+                       "<p>Version 0.2</p>");
 }
 
 void MainWindow::onShowManual() {

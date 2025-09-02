@@ -1,3 +1,10 @@
+// QRsync - A simple Qt-based GUI for the rsync command-line tool.
+// Copyright (C) 2025 Carlso J. Checo <binarydepth@gmail.com>
+//
+// This program is licensed under the Community Public Software License (CPSL) v0.1.
+// You should have received a copy of this license along with this program.
+// If not, please see the LICENSE.md file in the root directory of this project.
+
 #ifndef MAINWINDOW_HPP
 #define MAINWINDOW_HPP
 
@@ -30,7 +37,7 @@ private slots:
     void onRename(const QString &name);
     void onDelete(const QString &name);
     void onAbout();
-    void onShowManual(); // New slot for Help > Manual
+    void onShowManual();
     void onModeContents();
     void onModeMirror();
     void onManualModeToggled(bool checked);
@@ -98,6 +105,7 @@ private:
     // --- Process & Settings ---
     QProcess *rsyncProcess;
     QString settingsFilePath;
+    bool manualHelpShown; // Flag for the one-time pop-up
 };
 
 #endif // MAINWINDOW_HPP
