@@ -135,7 +135,7 @@ void MainWindow::setupUI() {
 }
 
 void MainWindow::setupMenuBar() {
-    QMenu *appMenu = menuBar()->addMenu("&QRsync");
+    QMenu *appMenu = menuBar()->addMenu("&Mode");
 
     modeActionGroup = new QActionGroup(this);
     modeActionGroup->setExclusive(true);
